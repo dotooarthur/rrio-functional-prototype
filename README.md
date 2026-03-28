@@ -8,7 +8,7 @@ This prototype demonstrates how RRIO can move from classroom assessment evidence
 ## What the prototype shows
 - Uploading classroom assessment data
 - Computing summary cards
-- Identing a likely skill gap or misconception focus
+- Identifying a likely skill gap or misconception focus
 - Generating a next-day lesson draft
 - Showing materials and export options
 - Supporting teacher review and approval
