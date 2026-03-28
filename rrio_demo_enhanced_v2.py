@@ -462,7 +462,7 @@ st.markdown('</div>', unsafe_allow_html=True)
 # Section 6: Teacher review
 # -----------------------------
 st.markdown('<div class="section-box">', unsafe_allow_html=True)
-st.subheader("6. Teacher Review and Approval")
+st.subheader("6. Teacher Review, Edit and Approval")
 st.info("RRIO is a teacher-support prototype. All outputs require teacher review before classroom use.")
 
 notes = st.text_area(
