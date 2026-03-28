@@ -15,13 +15,44 @@ st.set_page_config(
 # -----------------------------
 st.markdown("""
 <style>
-.block-container {padding-top: 1.1rem; padding-bottom: 1.1rem;}
-.main-title {font-size: 2rem; font-weight: 700; color: #12355B; margin-bottom: 0.15rem;}
-.subtle {color: #5b6573; font-size: 0.98rem; margin-bottom: 0.8rem;}
-.insight-box {background: #eef6ff; border-left: 6px solid #2563eb; padding: 14px 16px; border-radius: 10px; margin-bottom: 10px;}
-.lesson-box {background: #ffffff; border: 1px solid #d9e2f0; border-radius: 14px; padding: 18px;}
+.block-container {padding-top: 1rem; padding-bottom: 1rem;}
+.main-title {font-size: 2.1rem; font-weight: 700; color: #12355B; margin-bottom: 0.15rem;}
+.subtle {color: #5b6573; font-size: 1rem; margin-bottom: 0.8rem;}
+.section-box {
+    background: #ffffff;
+    border: 1px solid #d9e2f0;
+    border-radius: 14px;
+    padding: 18px;
+    margin-bottom: 18px;
+}
+.insight-box {
+    background: #eef6ff;
+    border-left: 6px solid #2563eb;
+    padding: 14px 16px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+}
+.trace-box {
+    background: #f8fafc;
+    border: 1px solid #d9e2f0;
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+}
+.lesson-box {
+    background: #fcfdff;
+    border: 1px solid #d9e2f0;
+    border-radius: 14px;
+    padding: 18px;
+    margin-top: 10px;
+}
 .small-note {font-size: 0.9rem; color: #667085;}
-.trace-box {background: #f8fafc; border: 1px solid #d9e2f0; border-radius: 12px; padding: 12px 14px; margin-bottom: 10px;}
+.stMetric {
+    background: #f7f9fc;
+    border: 1px solid #d9e2f0;
+    padding: 10px;
+    border-radius: 12px;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -43,17 +74,14 @@ def load_data(uploaded_file):
             st.stop()
     return pd.read_csv(uploaded_file)
 
-
 def normalize(df):
     out = df.copy()
     out.columns = [c.strip().lower() for c in out.columns]
     return out
 
-
 def validate(df):
     missing = REQUIRED_COLS - set(df.columns)
     return sorted(missing)
-
 
 def compute_results(df):
     if df.empty:
@@ -80,8 +108,8 @@ def compute_results(df):
         raise ValueError("Unable to compute standard or skill summaries from the uploaded data.")
 
     weakest_standard = standards.iloc[0]["standard"]
-
     weakest_skill_candidates = skills[skills["standard"] == weakest_standard].sort_values("accuracy")
+
     if weakest_skill_candidates.empty:
         raise ValueError("Unable to identify a weakest skill for the selected standard.")
 
@@ -105,7 +133,6 @@ def compute_results(df):
         "student_perf": student_perf,
     }
 
-
 def build_evidence_trace(df, results, threshold=THRESHOLD_SUPPORT):
     skill_mask = (
         (df["standard"] == results["weakest_standard"]) &
@@ -113,8 +140,7 @@ def build_evidence_trace(df, results, threshold=THRESHOLD_SUPPORT):
     )
     skill_accuracy = round(df.loc[skill_mask, "correct"].mean() * 100, 1)
 
-    student_perf = results["student_perf"]
-    below_threshold = int((student_perf["correct"] < threshold).sum())
+    below_threshold = int((results["student_perf"]["correct"] < threshold).sum())
 
     return {
         "selected_standard": results["weakest_standard"],
@@ -123,7 +149,6 @@ def build_evidence_trace(df, results, threshold=THRESHOLD_SUPPORT):
         "students_below_threshold": below_threshold,
         "threshold_pct": int(threshold * 100),
     }
-
 
 def group_students(df):
     student_perf = df.groupby("student_id", as_index=False)["correct"].mean()
@@ -135,7 +160,6 @@ def group_students(df):
     student_perf["accuracy_pct"] = (student_perf["correct"] * 100).round(1)
     return student_perf
 
-
 def misconception_text(skill):
     s = str(skill).lower()
     bank = {
@@ -145,11 +169,7 @@ def misconception_text(skill):
         "fraction equations": "Students are avoiding fraction-clearing strategies and losing equation balance.",
         "graph interpretation": "Students can read points but struggle to connect slope or change to meaning in context.",
     }
-    return bank.get(
-        s,
-        "Students show inconsistent understanding and need explicit modeling plus guided practice."
-    )
-
+    return bank.get(s, "Students show inconsistent understanding and need explicit modeling plus guided practice.")
 
 def lesson_text(standard, skill, ell=False, ese=False, coteach=False):
     skill_lower = str(skill).lower()
@@ -219,7 +239,6 @@ def lesson_text(standard, skill, ell=False, ese=False, coteach=False):
     This is a prototype-generated instructional draft. Teacher approval is required before classroom use.
     """).strip()
 
-
 def materials_df(skill):
     return pd.DataFrame([
         {"Material": "Guided Notes", "Purpose": f"Step-by-step scaffold for {skill}"},
@@ -228,7 +247,6 @@ def materials_df(skill):
         {"Material": "Exit Ticket", "Purpose": f"Measure improvement after reteach of {skill}"},
         {"Material": "Answer Key", "Purpose": "Teacher-only answers and suggested explanations"},
     ])
-
 
 # -----------------------------
 # Sidebar
@@ -243,9 +261,9 @@ ese = st.sidebar.toggle("ESE Support", value=True)
 coteach = st.sidebar.toggle("Co-Teach Planning", value=False)
 
 # -----------------------------
-# Data load and state reset
+# Data load
 # -----------------------------
-uploaded = st.file_uploader("Upload a CSV", type=["csv"])
+uploaded = st.file_uploader("Upload classroom assessment data (.csv)", type=["csv"])
 df = normalize(load_data(uploaded))
 missing = validate(df)
 
@@ -299,70 +317,65 @@ st.markdown(
 st.caption("This prototype uses performance thresholds and skill-based instructional templates to simulate RRIO’s evidence-to-instruction logic.")
 
 # -----------------------------
-# Tabs
+# Section 1: Upload
 # -----------------------------
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-    "1. Upload Data",
-    "2. Summary Cards",
-    "3. Misconception Analysis",
-    "4. Generate Lesson",
-    "5. Materials & Export",
-    "6. Teacher Review"
-])
-
-with tab1:
-    st.subheader("Upload classroom assessment data")
-    st.success(f"Loaded {len(df)} rows from {df['student_id'].nunique()} students.")
-    st.dataframe(df.head(12), use_container_width=True)
-
-    with open("rrio_demo_sample_v2.csv", "rb") as f:
-        st.download_button(
-            "Download sample CSV",
-            data=f.read(),
-            file_name="rrio_demo_sample_v2.csv",
-            mime="text/csv"
-        )
-
-with tab2:
-    st.subheader("Summary cards")
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Class Mastery", f"{results['mastery_pct']}%")
-    c2.metric("Students Needing Support", results["support_count"])
-    c3.metric("Priority Standard", results["weakest_standard"])
-    c4.metric("Top Skill Accuracy", f"{results['weakest_skill_pct']}%")
-
-    chart_df = results["standards"].copy()
-    chart_df["accuracy_pct"] = chart_df["accuracy"] * 100
-    st.bar_chart(chart_df.set_index("standard")["accuracy_pct"], use_container_width=True)
-
-with tab3:
-    st.subheader("Misconception analysis")
-    st.markdown(
-        f'<div class="insight-box"><strong>Top misconception area:</strong> {results["weakest_skill"]}<br><span class="small-note">Priority standard: {results["weakest_standard"]}</span></div>',
-        unsafe_allow_html=True
+st.markdown('<div class="section-box">', unsafe_allow_html=True)
+st.subheader("1. Upload Classroom Data")
+st.success(f"Loaded {len(df)} response rows from {df['student_id'].nunique()} students.")
+st.dataframe(df.head(12), use_container_width=True)
+with open("rrio_demo_sample_v2.csv", "rb") as f:
+    st.download_button(
+        "Download sample CSV",
+        data=f.read(),
+        file_name="rrio_demo_sample_v2.csv",
+        mime="text/csv"
     )
-    st.write(misconception_text(results["weakest_skill"]))
+st.markdown('</div>', unsafe_allow_html=True)
 
-    skill_df = results["skills"].copy()
-    skill_df["accuracy_pct"] = (skill_df["accuracy"] * 100).round(1)
-    st.dataframe(
-        skill_df[["standard", "skill", "accuracy_pct"]].sort_values(["standard", "accuracy_pct"]),
-        use_container_width=True
-    )
+# -----------------------------
+# Section 2: Analysis summary
+# -----------------------------
+st.markdown('<div class="section-box">', unsafe_allow_html=True)
+st.subheader("2. RRIO Analysis Summary")
+c1, c2, c3, c4 = st.columns(4)
+c1.metric("Class Mastery", f"{results['mastery_pct']}%")
+c2.metric("Students Needing Support", results["support_count"])
+c3.metric("Priority Standard", "Linear Equations" if "equation" in results["weakest_standard"].lower() else results["weakest_standard"])
+c4.metric("Top Skill Accuracy", f"{results['weakest_skill_pct']}%")
 
-    st.markdown("### Student Support Groups")
-    group_counts = student_groups["group"].value_counts().rename_axis("Group").reset_index(name="Students")
-    st.dataframe(group_counts, use_container_width=True)
-    st.bar_chart(group_counts.set_index("Group")["Students"], use_container_width=True)
-    st.caption("Prototype grouping thresholds: Reteach < 50%, Near Mastery 50–79%, On Track ≥ 80%.")
+st.markdown(
+    f'<div class="insight-box"><strong>Likely Skill Gap:</strong> {results["weakest_skill"]}<br><span class="small-note">Full priority standard: {results["weakest_standard"]}</span></div>',
+    unsafe_allow_html=True
+)
 
-with tab4:
-    st.subheader("Generate next-day lesson")
-    st.caption("This instructional response is grounded in the lowest-performing standard and skill in the uploaded data.")
+skill_df = results["skills"].copy()
+skill_df["accuracy_pct"] = (skill_df["accuracy"] * 100).round(1)
+st.dataframe(
+    skill_df[["standard", "skill", "accuracy_pct"]].sort_values(["standard", "accuracy_pct"]),
+    use_container_width=True
+)
+st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown("### Evidence Trace")
-    st.markdown(
-        f"""
+# -----------------------------
+# Section 3: Student groups
+# -----------------------------
+st.markdown('<div class="section-box">', unsafe_allow_html=True)
+st.subheader("3. Student Support Groups")
+group_counts = student_groups["group"].value_counts().rename_axis("Group").reset_index(name="Students")
+st.dataframe(group_counts, use_container_width=True)
+st.bar_chart(group_counts.set_index("Group")["Students"], use_container_width=True)
+st.caption("Prototype grouping thresholds: Reteach < 50%, Near Mastery 50–79%, On Track ≥ 80%.")
+st.markdown('</div>', unsafe_allow_html=True)
+
+# -----------------------------
+# Section 4: Generate plan
+# -----------------------------
+st.markdown('<div class="section-box">', unsafe_allow_html=True)
+st.subheader("4. Generate RRIO Plan")
+st.caption("This instructional response is grounded in the lowest-performing standard and skill in the uploaded data.")
+
+st.markdown(
+    f"""
 <div class="trace-box">
 <strong>Selected Standard:</strong> {evidence["selected_standard"]}<br>
 <strong>Selected Skill:</strong> {evidence["selected_skill"]}<br>
@@ -370,95 +383,109 @@ with tab4:
 <strong>Students Below Threshold ({evidence["threshold_pct"]}%):</strong> {evidence["students_below_threshold"]}
 </div>
 """,
-        unsafe_allow_html=True
-    )
+    unsafe_allow_html=True
+)
 
-    if st.button("Generate Instructional Response", type="primary"):
-        feed = st.empty()
-        steps = [
-            f"Loaded {results['responses']} response rows for {results['students']} students.",
-            f"Computed overall class mastery: {results['mastery_pct']}%.",
-            f"Priority standard selected: {results['weakest_standard']}.",
-            f"Detected lowest skill accuracy in {results['weakest_skill']}: {results['weakest_skill_pct']}%.",
-            f"Flagged {results['support_count']} students below the support threshold of {evidence['threshold_pct']}%.",
-            "Generated a skill-sensitive next-day lesson draft with supports and review workflow."
-        ]
-        shown = ""
-        for step in steps:
-            shown += f"• {step}\n"
-            feed.info(shown)
-            time.sleep(0.45)
-        st.session_state.generated = True
+if st.button("Generate Instructional Response", type="primary"):
+    feed = st.empty()
+    steps = [
+        f"Loaded {results['responses']} response rows for {results['students']} students.",
+        f"Computed overall class mastery: {results['mastery_pct']}%.",
+        f"Priority standard selected: {results['weakest_standard']}.",
+        f"Detected lowest skill accuracy in {results['weakest_skill']}: {results['weakest_skill_pct']}%.",
+        f"Flagged {results['support_count']} students below the support threshold of {evidence['threshold_pct']}%.",
+        "Generated a skill-sensitive next-day lesson draft with supports and review workflow."
+    ]
+    shown = ""
+    for step in steps:
+        shown += f"• {step}\n"
+        feed.info(shown)
+        time.sleep(0.45)
+    st.session_state.generated = True
 
-    if st.session_state.generated:
-        st.markdown('<div class="lesson-box">', unsafe_allow_html=True)
-        st.markdown(lesson)
-        st.markdown('</div>', unsafe_allow_html=True)
+if st.session_state.generated:
+    st.markdown('<div class="lesson-box">', unsafe_allow_html=True)
+    st.markdown(lesson)
+    st.markdown('</div>', unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True)
 
-with tab5:
-    st.subheader("Materials & export")
-    st.dataframe(materials, use_container_width=True)
+# -----------------------------
+# Section 5: Materials preview
+# -----------------------------
+st.markdown('<div class="section-box">', unsafe_allow_html=True)
+st.subheader("5. Materials Preview & Export")
+st.dataframe(materials, use_container_width=True)
 
-    st.markdown("### Preview: Guided Notes")
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.markdown("### Guided Notes")
     st.info(f"""
 Step 1: Identify the target skill: {results["weakest_skill"]}  
 Step 2: Review the likely misconception  
-Step 3: Apply the strategy shown in the modeled examples  
+Step 3: Apply the modeled strategy  
 Step 4: Check your answer and explain your reasoning
 """)
 
-    st.markdown("### Preview: Exit Ticket")
+with col2:
+    st.markdown("### Exit Ticket")
     st.success(f"""
 1. Complete one problem targeting **{results["weakest_skill"]}**  
 2. Explain the reasoning you used  
 3. Identify one mistake a student might make and correct it
 """)
 
-    st.markdown("### Preview: Answer Key")
+with col3:
+    st.markdown("### Answer Key")
     st.warning("""
 - Correct answer should show the correct operation sequence  
 - Reasoning should match the modeled process  
 - Student explanation should justify why the step preserves equivalence
 """)
 
-    lesson_export = lesson.replace("**", "")
-    st.download_button(
-        "Download lesson draft (.txt)",
-        data=lesson_export,
-        file_name="rrio_lesson_draft.txt",
-        mime="text/plain"
-    )
-    st.download_button(
-        "Download materials pack (.csv)",
-        data=materials.to_csv(index=False).encode("utf-8"),
-        file_name="rrio_materials_pack.csv",
-        mime="text/csv"
-    )
+lesson_export = lesson.replace("**", "")
+st.download_button(
+    "Download lesson draft (.txt)",
+    data=lesson_export,
+    file_name="rrio_lesson_draft.txt",
+    mime="text/plain"
+)
+st.download_button(
+    "Download materials pack (.csv)",
+    data=materials.to_csv(index=False).encode("utf-8"),
+    file_name="rrio_materials_pack.csv",
+    mime="text/csv"
+)
+st.markdown('</div>', unsafe_allow_html=True)
 
-with tab6:
-    st.subheader("Teacher review and approval")
-    st.info("RRIO is a teacher-support prototype. All outputs require teacher review before classroom use.")
+# -----------------------------
+# Section 6: Teacher review
+# -----------------------------
+st.markdown('<div class="section-box">', unsafe_allow_html=True)
+st.subheader("6. Teacher Review and Approval")
+st.info("RRIO is a teacher-support prototype. All outputs require teacher review before classroom use.")
 
-    notes = st.text_area(
-        "Teacher edits / notes",
-        value="Adjust pacing for small-group reteach and add one extra worked example.",
-        height=130
-    )
-    approved = st.checkbox("I have reviewed this instructional draft.")
+notes = st.text_area(
+    "Teacher edits / notes",
+    value="Adjust pacing for small-group reteach and add one extra worked example.",
+    height=130
+)
+approved = st.checkbox("I have reviewed this instructional draft.")
 
-    if approved:
-        st.success("Draft approved for export.")
-    else:
-        st.warning("Draft not yet approved.")
+if approved:
+    st.success("Draft approved for export.")
+else:
+    st.warning("Draft not yet approved.")
 
-    st.write("**Saved note:**")
-    st.write(notes)
+review_df = pd.DataFrame([
+    {"Field": "Priority Standard", "Value": evidence["selected_standard"]},
+    {"Field": "Target Skill", "Value": evidence["selected_skill"]},
+    {"Field": "Students Below Threshold", "Value": evidence["students_below_threshold"]},
+    {"Field": "Approval Status", "Value": "Approved" if approved else "Pending"},
+])
 
-    st.markdown("### Review Snapshot")
-    review_df = pd.DataFrame([
-        {"Field": "Priority Standard", "Value": evidence["selected_standard"]},
-        {"Field": "Target Skill", "Value": evidence["selected_skill"]},
-        {"Field": "Students Below Threshold", "Value": evidence["students_below_threshold"]},
-        {"Field": "Approval Status", "Value": "Approved" if approved else "Pending"},
-    ])
-    st.dataframe(review_df, use_container_width=True)
+st.markdown("### Review Snapshot")
+st.dataframe(review_df, use_container_width=True)
+st.write("**Saved note:**")
+st.write(notes)
+st.markdown('</div>', unsafe_allow_html=True)
