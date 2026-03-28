@@ -36,7 +36,11 @@ THRESHOLD_SUPPORT = 0.70
 # -----------------------------
 def load_data(uploaded_file):
     if uploaded_file is None:
-        return pd.read_csv("rrio_demo_sample_v2.csv")
+        try:
+            return pd.read_csv("rrio_demo_sample_v2.csv")
+        except FileNotFoundError:
+            st.error("Sample data file not found. Please upload a CSV.")
+            st.stop()
     return pd.read_csv(uploaded_file)
 
 
@@ -238,6 +242,55 @@ ell = st.sidebar.toggle("ELL Support", value=True)
 ese = st.sidebar.toggle("ESE Support", value=True)
 coteach = st.sidebar.toggle("Co-Teach Planning", value=False)
 
+# -----------------------------
+# Data load and state reset
+# -----------------------------
+uploaded = st.file_uploader("Upload a CSV", type=["csv"])
+df = normalize(load_data(uploaded))
+missing = validate(df)
+
+if missing:
+    st.error("Missing required columns: " + ", ".join(missing))
+    st.stop()
+
+try:
+    results = compute_results(df)
+except ValueError as e:
+    st.error(str(e))
+    st.stop()
+
+current_signature = (
+    len(df),
+    df["student_id"].nunique(),
+    ell,
+    ese,
+    coteach
+)
+
+if "generated" not in st.session_state:
+    st.session_state.generated = False
+
+if "input_signature" not in st.session_state:
+    st.session_state.input_signature = current_signature
+
+if st.session_state.input_signature != current_signature:
+    st.session_state.generated = False
+    st.session_state.input_signature = current_signature
+
+evidence = build_evidence_trace(df, results)
+student_groups = group_students(df)
+lesson = lesson_text(
+    results["weakest_standard"],
+    results["weakest_skill"],
+    ell=ell,
+    ese=ese,
+    coteach=coteach
+)
+materials = materials_df(results["weakest_skill"])
+
+# -----------------------------
+# Header
+# -----------------------------
 st.markdown('<div class="main-title">RRIO: From Data to Instruction — Instantly</div>', unsafe_allow_html=True)
 st.markdown(
     '<div class="subtle">A functional prototype showing how RRIO converts classroom evidence into a grounded, reviewable next-day instructional response.</div>',
@@ -259,20 +312,6 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
 
 with tab1:
     st.subheader("Upload classroom assessment data")
-    uploaded = st.file_uploader("Upload a CSV", type=["csv"])
-    df = normalize(load_data(uploaded))
-    missing = validate(df)
-
-    if missing:
-        st.error("Missing required columns: " + ", ".join(missing))
-        st.stop()
-
-    try:
-        results = compute_results(df)
-    except ValueError as e:
-        st.error(str(e))
-        st.stop()
-
     st.success(f"Loaded {len(df)} rows from {df['student_id'].nunique()} students.")
     st.dataframe(df.head(12), use_container_width=True)
 
@@ -283,18 +322,6 @@ with tab1:
             file_name="rrio_demo_sample_v2.csv",
             mime="text/csv"
         )
-
-# Reuse results across tabs
-evidence = build_evidence_trace(df, results)
-student_groups = group_students(df)
-lesson = lesson_text(
-    results["weakest_standard"],
-    results["weakest_skill"],
-    ell=ell,
-    ese=ese,
-    coteach=coteach
-)
-materials = materials_df(results["weakest_skill"])
 
 with tab2:
     st.subheader("Summary cards")
@@ -327,6 +354,7 @@ with tab3:
     group_counts = student_groups["group"].value_counts().rename_axis("Group").reset_index(name="Students")
     st.dataframe(group_counts, use_container_width=True)
     st.bar_chart(group_counts.set_index("Group")["Students"], use_container_width=True)
+    st.caption("Prototype grouping thresholds: Reteach < 50%, Near Mastery 50–79%, On Track ≥ 80%.")
 
 with tab4:
     st.subheader("Generate next-day lesson")
@@ -344,13 +372,6 @@ with tab4:
 """,
         unsafe_allow_html=True
     )
-
-    e3, e4 = st.columns(2)
-    e3.metric("Skill Accuracy", f'{evidence["skill_accuracy"]}%')
-    e4.metric("Students Below Threshold", evidence["students_below_threshold"])
-
-    if "generated" not in st.session_state:
-        st.session_state.generated = False
 
     if st.button("Generate Instructional Response", type="primary"):
         feed = st.empty()
@@ -409,7 +430,7 @@ Step 4: Check your answer and explain your reasoning
     )
     st.download_button(
         "Download materials pack (.csv)",
-        data=materials.to_csv(index=False),
+        data=materials.to_csv(index=False).encode("utf-8"),
         file_name="rrio_materials_pack.csv",
         mime="text/csv"
     )
