@@ -8,7 +8,7 @@ This prototype demonstrates how RRIO can move from classroom assessment evidence
 ## What the prototype shows
 - Uploading classroom assessment data
 - Computing summary cards
-- Identifying a likely misconception focus
+- Identing a likely skill gap or misconception focus
 - Generating a next-day lesson draft
 - Showing materials and export options
 - Supporting teacher review and approval
@@ -22,14 +22,3 @@ This prototype demonstrates how RRIO can move from classroom assessment evidence
 ```bash
 pip install -r requirements.txt
 streamlit run rrio_demo_enhanced_v2.py
-```
-
-## Demo flow
-1. Summary Cards
-2. Misconception Analysis
-3. Generate Lesson
-4. Materials & Export
-5. Teacher Review
-
-## Notes
-This is a **functional prototype** designed to demonstrate RRIO’s evidence-to-instruction workflow. It is not presented as a fully deployed district system.
