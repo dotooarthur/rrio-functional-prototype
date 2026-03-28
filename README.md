@@ -24,7 +24,7 @@ pip install -r requirements.txt
 streamlit run rrio_demo_enhanced_v2.py
 ```
 
-## Suggested demo flow
+## Demo flow
 1. Summary Cards
 2. Misconception Analysis
 3. Generate Lesson
